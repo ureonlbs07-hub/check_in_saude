@@ -1,6 +1,9 @@
 import os
 import json
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv()
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -16,12 +19,7 @@ REGRAS OBRIGATÓRIAS:
 6. Use linguagem simples e humana.
 7. Nunca se coloque como médico.
 
-REGRAS DE ESTILO:
-- Máximo de 3 frases por campo textual.
-- Listas com no máximo 5 itens.
-- Não repita informações entre os campos.
-
-FORMATO OBRIGATÓRIO DA RESPOSTA (JSON):
+FORMATO OBRIGATÓRIO (JSON):
 {
   "analise_geral": "",
   "possiveis_causas": [],
@@ -32,6 +30,8 @@ FORMATO OBRIGATÓRIO DA RESPOSTA (JSON):
 """
 
 def consultar_ia(relato_usuario: str) -> dict:
+    print("PROMPT ATIVO — VERSÃO INLINE")
+
     try:
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
@@ -52,14 +52,7 @@ def consultar_ia(relato_usuario: str) -> dict:
         return {
             "analise_geral": "Não foi possível gerar uma análise no momento.",
             "possiveis_causas": [],
-            "cuidados_gerais": [
-                "Observe a evolução dos sintomas",
-                "Mantenha descanso e hidratação"
-            ],
-            "sinais_de_alerta": [
-                "Persistência ou piora dos sintomas"
-            ],
-            "aviso_legal": (
-                "Este conteúdo é apenas informativo e não substitui avaliação profissional."
-            )
+            "cuidados_gerais": ["Observe a evolução dos sintomas"],
+            "sinais_de_alerta": ["Persistência ou piora dos sintomas"],
+            "aviso_legal": "Este conteúdo é apenas informativo."
         }
