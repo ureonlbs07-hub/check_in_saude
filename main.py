@@ -1,8 +1,11 @@
 from fastapi import FastAPI
-from models import CheckinRequest
+from pydantic import BaseModel
 from ai_service import consultar_ia
 
 app = FastAPI()
+
+class CheckinRequest(BaseModel):
+    relato: str
 
 @app.post("/analyze")
 def analyze(data: CheckinRequest):
