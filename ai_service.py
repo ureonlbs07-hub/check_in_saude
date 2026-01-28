@@ -3,60 +3,100 @@ import json
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Carrega variáveis de ambiente
+# ===============================
+# SETUP BÁSICO
+# ===============================
+
 load_dotenv()
 
-# Inicializa cliente OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
 
+# ===============================
+# CARREGAMENTO DO PROMPT MASTER
+# ===============================
 
-def consultar_ia(prompt: str) -> dict:
+def carregar_prompt_master() -> str:
     """
-    Envia um prompt para a IA e espera EXCLUSIVAMENTE um JSON válido como resposta.
-    Retorna um dicionário Python.
+    Lê o prompt_master.py como TEXTO.
+    O arquivo deve conter apenas TEXTO,
+    não código Python executável.
+    """
+    caminho = os.path.join(os.path.dirname(__file__), "prompt_master.py")
+
+    with open(caminho, "r", encoding="utf-8") as arquivo:
+        return arquivo.read()
+
+
+# ===============================
+# FUNÇÃO PRINCIPAL DE IA
+# ===============================
+
+def consultar_ia(relato_usuario: str) -> dict:
+    """
+    Envia o relato do usuário para a IA e exige
+    EXCLUSIVAMENTE um JSON válido como resposta.
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Você deve responder EXCLUSIVAMENTE com um JSON válido. "
-                    "Não inclua comentários, explicações, markdown ou texto fora do JSON."
-                )
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.3,
-        max_tokens=700
-    )
+    prompt_base = carregar_prompt_master()
 
-    texto = response.choices[0].message.content.strip()
+    prompt_final = f"""
+{prompt_base}
+
+RELATO DO USUÁRIO:
+{relato_usuario}
+
+Responda OBRIGATORIAMENTE no formato JSON definido acima.
+"""
 
     try:
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Você é um assistente de orientação em saúde NÃO MÉDICA. "
+                        "Responda SOMENTE com um JSON válido. "
+                        "Não inclua explicações, comentários, markdown ou texto fora do JSON."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt_final
+                }
+            ],
+            temperature=0.2,
+            max_tokens=600
+        )
+
+        texto = response.choices[0].message.content.strip()
         return json.loads(texto)
 
-    except json.JSONDecodeError as e:
-        # DEBUG CONTROLADO (essencial em MVP)
-        print("⚠️ ERRO: IA retornou JSON inválido")
+    except json.JSONDecodeError:
+        print("⚠️ ERRO: JSON inválido retornado pela IA")
         print("📥 RESPOSTA BRUTA:")
         print(texto)
-        print("📛 ERRO JSON:", str(e))
 
-        # Retorno seguro para não quebrar o app
-        return {
-            "analise_geral": "Não foi possível gerar uma resposta estruturada no momento.",
-            "possiveis_causas": [],
-            "cuidados_gerais": [],
-            "sinais_de_alerta": [
-                "Se o desconforto persistir, procure um profissional de saúde."
-            ],
-            "aviso_legal": (
-                "Este conteúdo é apenas informativo e educativo e "
-                "não substitui avaliação ou orientação profissional."
-            )
-        }
+    except Exception as e:
+        print("🔥 ERRO NA CONSULTA DA IA:", str(e))
+
+    # ===============================
+    # FALLBACK SEGURO (NUNCA QUEBRA O APP)
+    # ===============================
+    return {
+        "analise_geral": "Não foi possível gerar uma análise estruturada no momento.",
+        "possiveis_causas": [],
+        "cuidados_gerais": [
+            "Observe a evolução dos sintomas",
+            "Mantenha hidratação e descanso"
+        ],
+        "sinais_de_alerta": [
+            "Persistência ou piora dos sintomas"
+        ],
+        "aviso_legal": (
+            "Este conteúdo é apenas informativo e não substitui "
+            "avaliação ou orientação de um profissional de saúde."
+        )
+    }
