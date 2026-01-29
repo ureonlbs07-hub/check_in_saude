@@ -7,6 +7,14 @@ app = FastAPI()
 class CheckinRequest(BaseModel):
     relato: str
 
-@app.post("/analyze")
+class CheckinResponse(BaseModel):
+    response: str
+
+@app.post("/analyze", response_model=CheckinResponse)
 def analyze(data: CheckinRequest):
-    return consultar_ia(data.relato)
+    resultado = consultar_ia(data.relato)
+
+    if not isinstance(resultado, str):
+        resultado = str(resultado)
+
+    return {"response": resultado}
